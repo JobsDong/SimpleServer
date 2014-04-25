@@ -23,7 +23,8 @@ class SelectPoll(object):
     def poll(self, timeout):
         readable, writeable, errors = select.select(self._read_fds,
                                                     self._write_fds,
-                                                    self._error_fds)
+                                                    self._error_fds,
+                                                    timeout)
         events = {}
         for fd in readable:
             events[fd] = events.get(fd, 0) | SelectPoll.READ
@@ -47,9 +48,9 @@ class SelectPoll(object):
             self._read_fds.add(fd)
 
     def unregister(self, fd):
-        self._read_fds.discard(fd, None)
-        self._write_fds.discard(fd, None)
-        self._error_fds.discard(fd, None)
+        self._read_fds.discard(fd)
+        self._write_fds.discard(fd)
+        self._error_fds.discard(fd)
 
     def modify(self, fd, events):
         self.unregister(fd)
