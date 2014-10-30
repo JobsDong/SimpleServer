@@ -114,9 +114,9 @@ class Server(object):
 			try:
 				client.read()
 			except CloseClientException:
-				self.poll.unregister(fd)
-				self.clients[fd]
 				client.close()
+				self.poll.unregister(fd)
+				del self.clients[fd]
 			except:
 				self.logger.warn("one client read error: %s" % except_info())
 				self.poll.unregister(fd)

@@ -10,7 +10,7 @@ from errno import  EWOULDBLOCK, ECONNRESET, \
 	ENOTCONN, ESHUTDOWN, ECONNABORTED
 import logging
 
-from util import except_info
+from util import except_info, console_logger
 
 
 class ClientException(Exception):
@@ -40,7 +40,7 @@ class Client(object):
 
 		self.init()
 
-		self.logger = logging.getLogger()
+		self.logger = console_logger
 		self.logger.info("%s:%s - Connection" % (self.address[0], self.address[1]))
 
 	def read(self):
@@ -53,13 +53,19 @@ class Client(object):
 				data = self.socket.recv(self.READ_BUFFER_SIZE)
 				if not data:
 					self.running = False
-					self.socket.shutdown(socket.SHUT_RDWR)
+					try:
+						self.socket.shutdown(socket.SHUT_RDWR)
+					except:
+						pass
 					raise CloseClientException("read, but empty data")
 
 			except socket.error, e:
 				if e.args[0] in (ECONNRESET, ENOTCONN, ESHUTDOWN, ECONNABORTED):
 					self.running = False
-					self.socket.shutdown(socket.SHUT_RDWR)
+					try:
+						self.socket.shutdown(socket.SHUT_RDWR)
+					except:
+						pass
 					raise ClientException("socket read error:%s" % except_info())
 				else:
 					raise
@@ -89,6 +95,7 @@ class Client(object):
 				self.last_activity = time.time()
 
 	def close(self):
+		self.logger.info("socket:%d colse" % self.socket.fileno())
 		try:
 			self.socket.close()
 		except:
