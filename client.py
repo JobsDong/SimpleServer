@@ -24,10 +24,12 @@ class Client(object):
 	MAX_READ_BUFFER_SIZE = (1 << 16)  # 16kb
 	WRITE_BUFFER_SIZE = (1 << 18)  # 256kb
 	IDLE_TIMEOUT = 60 * 5  # 5 minutes
+	MAX_READ_EMPTY_COUNT = 10
 
 	def __init__(self, socket):
 		self.socket = socket
 		self.address = socket.getpeername()
+		self._read_empty_count = 0
 		self._close_after_read = False
 		self._close_after_write = False
 		self.read_buffer = ""
@@ -49,12 +51,17 @@ class Client(object):
 			try:
 				data = self.socket.recv(self.READ_BUFFER_SIZE)
 				if not data:
-					self.running = False
-					try:
-						self.socket.shutdown(socket.SHUT_RDWR)
-					except:
-						pass
-					raise CloseClientException("read, but empty data")
+					if self._read_empty_count > Client.MAX_READ_EMPTY_COUNT:
+						self.running = False
+						try:
+							self.socket.shutdown(socket.SHUT_RD)
+						except:
+							pass
+						raise CloseClientException("read, but empty data")
+					else:
+						self._read_empty_count += 1
+				else:
+					self._read_empty_count = 0
 
 			except socket.error, e:
 				if e.args[0] in (ECONNRESET, ENOTCONN, ESHUTDOWN, ECONNABORTED):
@@ -94,6 +101,7 @@ class Client(object):
 				self.write_buffer = self.write_buffer[result:]
 				self.last_activity = time.time()
 				if self._close_after_write and len(self.write_buffer) <= 0:
+					self.socket.shutdown(socket.SHUT_WR)
 					raise CloseClientException("close after write all msg")
 
 	def close(self):
