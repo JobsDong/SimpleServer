@@ -7,7 +7,6 @@ __author__ = ['"wuyadong" <wuyadong311521@gmail.com>']
 import socket
 
 from poll import SelectPoll, Poll
-from client import CloseClientException
 from http import HttpClient
 from util import except_info, console_logger
 
@@ -113,10 +112,6 @@ class Server(object):
 		if client is not None:
 			try:
 				client.read()
-			except CloseClientException:
-				client.close()
-				self.poll.unregister(fd)
-				del self.clients[fd]
 			except:
 				self.logger.warn("one client read error: %s" % except_info())
 				self.poll.unregister(fd)

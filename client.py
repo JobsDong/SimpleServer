@@ -8,19 +8,14 @@ import time
 import socket
 from errno import  EWOULDBLOCK, ECONNRESET, \
 	ENOTCONN, ESHUTDOWN, ECONNABORTED
-import logging
 
 from util import except_info, console_logger
 
 
-class ClientException(Exception):
-	"""client error
-	"""
+class ClientException(Exception): pass
 
 
-class CloseClientException(Exception):
-	"""fake exception, close
-	"""
+class CloseClientException(Exception): pass
 
 
 class Client(object):
@@ -33,6 +28,8 @@ class Client(object):
 	def __init__(self, socket):
 		self.socket = socket
 		self.address = socket.getpeername()
+		self._close_after_read = False
+		self._close_after_write = False
 		self.read_buffer = ""
 		self.write_buffer = ""
 		self.running = True
@@ -69,9 +66,12 @@ class Client(object):
 					raise ClientException("socket read error:%s" % except_info())
 				else:
 					raise
-			self.read_buffer += data
-			if len(self.read_buffer) > self.MAX_READ_BUFFER_SIZE:
-				raise ClientException("Maxread buffer size reached")
+			else:
+				self.read_buffer += data
+				if len(self.read_buffer) > self.MAX_READ_BUFFER_SIZE:
+					raise ClientException("Maxread buffer size reached")
+				if self._close_after_read:
+					raise CloseClientException("close after read")
 
 	def write(self):
 		"""
@@ -93,6 +93,8 @@ class Client(object):
 				print result, self.write_buffer
 				self.write_buffer = self.write_buffer[result:]
 				self.last_activity = time.time()
+				if self._close_after_write and len(self.write_buffer) <= 0:
+					raise CloseClientException("close after write all msg")
 
 	def close(self):
 		self.logger.info("socket:%d colse" % self.socket.fileno())
@@ -104,6 +106,12 @@ class Client(object):
 		self.read_buffer = ""
 		self.write_buffer = ""
 		self.running = False
+
+	def close_after_read(self):
+		self._close_after_read = True
+
+	def close_after_write(self):
+		self._close_after_write = True
 
 	def process(self):
 		if not self.running:

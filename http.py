@@ -23,6 +23,7 @@ class HttpClient(Client):
 
 	def processMessage(self, message):
 		self.writeMessage(HttpClient.response)
+		self.close_after_write()
 
 
 if __name__ == "__main__":
